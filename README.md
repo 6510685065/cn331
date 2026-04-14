@@ -1,107 +1,97 @@
 # Smart Campus Community Platform
 
-เว็บแอป community platform สำหรับมหาวิทยาลัยที่เริ่มต้นจาก frontend prototype และถูกพัฒนาต่อให้มีฐานข้อมูลจริง, workflow การโพสต์จริง, และ local AI features ผ่าน Ollama
+เว็บแอป community platform สำหรับมหาวิทยาลัย ที่เริ่มจาก frontend prototype และถูกพัฒนาต่อให้มีฐานข้อมูลจริง, ระบบโพสต์ที่เขียนกลับลง database, และ local AI features ผ่าน Ollama
 
-โปรเจคนี้เหมาะสำหรับใช้เป็นฐานในการพัฒนาต่อทั้งด้าน:
+README นี้เขียนสำหรับคนที่จะ clone โปรเจคไปแล้ว **ตั้งระบบใหม่บนเครื่องตัวเอง** เพื่อพัฒนาต่อ
 
-- full-stack web application
-- campus social/community platform
-- recommendation and moderation workflows
-- AI-assisted content tools
+## Overview
 
-## Current Scope
+ปัจจุบันโปรเจครองรับฟีเจอร์หลักเหล่านี้:
 
-ตอนนี้ระบบรองรับแล้วในระดับ development:
-
-- feed โพสต์
+- ดู feed โพสต์
 - สร้างโพสต์
-- like / save / comment / report
 - ลบโพสต์ของตัวเอง
-- saved posts / my posts filter
-- profile update
+- like / save / comment / report
+- filter แบบ `Saved` และ `My Posts`
+- แก้ไขข้อมูลโปรไฟล์
 - notifications
-- PostgreSQL + Prisma
-- local AI ผ่าน Ollama สำหรับ:
-  - generate เนื้อหาโพสต์จากภาพ
+- local AI ผ่าน Ollama สำหรับ
+  - สร้างเนื้อหาโพสต์จากรูป
   - moderation ก่อนโพสต์
-  - แปลโพสต์ ไทย <-> อังกฤษ
+  - แปลโพสต์ไทย/อังกฤษ
 
-ยังมีบางส่วนที่ยังเป็นงานต่อยอด:
-
-- login จริง
-- university SSO / API login
-- role permission ที่ละเอียดขึ้น
-- resume persistence
-- calendar ที่มี event date จริง
-- production deployment
-
-## Tech Stack
+## Stack
 
 - React
 - Vite
 - TypeScript
-- Tailwind
+- Tailwind CSS
 - Express
 - Prisma
 - PostgreSQL
 - Ollama
 
-## Project Structure
-
-โครงสร้างหลักของโปรเจค:
-
-```text
-src/
-  app/
-    App.tsx                  # state หลักของแอป
-    components/              # UI components
-    data/mockData.ts         # mock data fallback
-    lib/bootstrap.ts         # frontend -> backend API helpers
-    types/index.ts           # shared frontend types
-
-server/
-  index.mjs                  # Express API server
-  contentFilter.mjs          # rule-based content moderation
-
-prisma/
-  schema.prisma              # database schema
-  seed.mjs                   # seed data
-```
-
-ถ้าจะพัฒนาต่อ จุดที่ควรรู้ก่อน:
-
-- [src/app/App.tsx](./src/app/App.tsx): รวม state หลัก, filters, routing แบบง่าย, และ handlers ต่าง ๆ
-- [src/app/lib/bootstrap.ts](./src/app/lib/bootstrap.ts): ฟังก์ชันเรียก API จาก frontend
-- [server/index.mjs](./server/index.mjs): backend routes และ AI/Ollama integration
-- [server/contentFilter.mjs](./server/contentFilter.mjs): ลิสต์คำหยาบ, spam, และคำไม่เหมาะสม
-- [prisma/schema.prisma](./prisma/schema.prisma): ตารางทั้งหมดของระบบ
-
 ## Requirements
 
-ก่อนเริ่ม ให้เตรียม:
+ก่อนเริ่ม ควรมีสิ่งนี้บนเครื่อง:
 
 - Node.js 18+ หรือใหม่กว่า
 - npm
 - PostgreSQL
 - Ollama
+- Git
 
-## 1. Clone And Install
+## Project Structure
+
+```text
+src/
+  app/
+    App.tsx                  # app state และ handler หลัก
+    components/              # UI components
+    lib/bootstrap.ts         # frontend -> backend API helpers
+    data/mockData.ts         # fallback mock data
+    types/index.ts           # frontend types
+
+server/
+  index.mjs                  # Express API server
+  contentFilter.mjs          # rule-based moderation
+
+prisma/
+  schema.prisma              # database schema
+  seed.mjs                   # development seed data
+```
+
+ไฟล์สำคัญที่ควรรู้ก่อนแก้:
+
+- [src/app/App.tsx](./src/app/App.tsx)
+- [src/app/lib/bootstrap.ts](./src/app/lib/bootstrap.ts)
+- [server/index.mjs](./server/index.mjs)
+- [server/contentFilter.mjs](./server/contentFilter.mjs)
+- [prisma/schema.prisma](./prisma/schema.prisma)
+- [prisma/seed.mjs](./prisma/seed.mjs)
+
+## 1. Clone The Project
 
 ```powershell
-git clone <your-repo-url>
+git clone <repo-url>
 cd cn331
+```
+
+## 2. Install Dependencies
+
+```powershell
 npm install
 ```
 
-## 2. Environment Setup
+## 3. Create Environment File
 
-สร้างไฟล์ `.env` จาก template:
+สร้าง `.env` จาก `.env.example`
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-ตัวอย่างค่าใน `.env`:
+ตัวอย่างค่าใน `.env`
 
 ```env
 DATABASE_URL="postgresql://cn331_user:1234@localhost:5432/cn331_smart_campus?schema=public"
@@ -110,23 +100,27 @@ OLLAMA_MODEL="qwen2.5vl:7b"
 APP_DEFAULT_LANGUAGE="th"
 ```
 
-ความหมาย:
+คำอธิบาย:
 
 - `DATABASE_URL`: ใช้เชื่อม PostgreSQL
 - `OLLAMA_URL`: URL ของ Ollama server
-- `OLLAMA_MODEL`: model ที่จะใช้กับฟีเจอร์ AI
-- `APP_DEFAULT_LANGUAGE`: ค่าเริ่มต้นสำหรับการแปลภาษา
+- `OLLAMA_MODEL`: ชื่อ model ที่ใช้กับฟีเจอร์ AI
+- `APP_DEFAULT_LANGUAGE`: ภาษาเริ่มต้นสำหรับการแปล
 
-## 3. PostgreSQL Setup
+## 4. Create A New PostgreSQL Database
 
-ถ้ามี PostgreSQL อยู่แล้ว ให้สร้าง database ใหม่สำหรับโปรเจคนี้โดยเฉพาะ
+โปรเจคนี้ไม่ได้แถม database จริงมาด้วย ดังนั้นคนที่เอาไปพัฒนาต่อต้อง **สร้าง database ใหม่บนเครื่องตัวเอง**
 
-ตัวอย่าง:
+แนะนำให้สร้าง:
 
 - database: `cn331_smart_campus`
 - user: `cn331_user`
 
-จากนั้นรัน:
+จากนั้นให้ใส่ค่าจริงลงใน `.env`
+
+## 5. Initialize The Database
+
+รันคำสั่งนี้ตามลำดับ:
 
 ```powershell
 npm run db:generate
@@ -134,46 +128,52 @@ npm run db:push
 npm run db:seed
 ```
 
-คำสั่งเหล่านี้ทำอะไร:
+คำสั่งแต่ละตัว:
 
 - `db:generate` สร้าง Prisma client
-- `db:push` sync schema ลง database
-- `db:seed` ใส่ข้อมูลตัวอย่าง
+- `db:push` สร้างตารางตาม schema ลง PostgreSQL
+- `db:seed` ใส่ข้อมูลตัวอย่างสำหรับใช้พัฒนาต่อ
 
-ถ้าอยากเปิดดูข้อมูล:
+ถ้าต้องการดูข้อมูลใน database:
 
 ```powershell
 npm run db:studio
 ```
 
-## 4. Ollama Setup
+## 6. Install And Prepare Ollama
 
-ติดตั้ง Ollama บนเครื่อง:
+ถ้าต้องการใช้ฟีเจอร์ AI ให้ติดตั้ง Ollama ก่อน
+
+ดาวน์โหลด:
 
 - Windows: https://ollama.com/download/windows
 
-จากนั้นโหลดโมเดล:
+หลังติดตั้งแล้ว ให้เปิด terminal ใหม่ แล้วรัน:
 
 ```powershell
 ollama pull qwen2.5vl:7b
 ```
 
-เช็กว่าโหลดสำเร็จ:
+เช็กว่า model พร้อม:
 
 ```powershell
 ollama list
 ```
 
-ควรเห็น `qwen2.5vl:7b`
+ควรเห็น:
+
+```text
+qwen2.5vl:7b
+```
 
 หมายเหตุ:
 
-- โมเดลไม่ได้ถูกเก็บไว้ใน repo นี้
-- ถ้าผู้ใช้คนอื่นจะใช้ฟีเจอร์ AI ด้วย ต้องมี Ollama ของตัวเอง หรือใช้ Ollama server กลางร่วมกัน
+- โมเดลไม่ได้อยู่ใน repo
+- ถ้าคนอื่น clone โปรเจคไป ก็ต้องติดตั้ง Ollama และ pull model เอง
 
-## 5. Run The Project
+## 7. Run The Project
 
-รันทั้ง frontend + backend:
+รันทั้ง frontend และ backend พร้อมกัน:
 
 ```powershell
 npm run dev
@@ -184,13 +184,7 @@ npm run dev
 - frontend: `http://localhost:5173`
 - api: `http://127.0.0.1:3001`
 
-ถ้าอยาก build:
-
-```powershell
-npm run build
-```
-
-## Development Commands
+## Available Commands
 
 ```powershell
 npm run dev
@@ -202,11 +196,23 @@ npm run db:seed
 npm run db:studio
 ```
 
+## Development Workflow
+
+ถ้าคนใหม่มารับโปรเจคนี้ไปพัฒนาต่อ แนะนำ flow นี้:
+
+1. clone repo
+2. `npm install`
+3. สร้าง `.env`
+4. สร้าง PostgreSQL database ใหม่
+5. รัน `db:generate`, `db:push`, `db:seed`
+6. ติดตั้ง Ollama และ pull model
+7. รัน `npm run dev`
+
 ## Existing Features
 
 ### Database-backed features
 
-- load users / posts / notifications จาก PostgreSQL
+- โหลด users / posts / notifications จาก PostgreSQL
 - create post
 - delete own post
 - like post
@@ -219,130 +225,78 @@ npm run db:studio
 
 ### AI features
 
-- generate draft post from uploaded image
+- generate post draft from image
 - moderation ก่อนโพสต์
-- translation Thai <-> English
-- streaming status ตอน generate จากภาพ
+- Thai/English translation
+- streaming status ตอน AI generate จากภาพ
 
-## AI Flow
+## AI Notes
 
-### Generate post from image
+ระบบ AI ตอนนี้เป็น local-first ผ่าน Ollama
 
-flow:
+### Generate from image
 
-1. user อัปโหลดรูป
-2. frontend ส่งรูปไป backend
-3. backend เรียก Ollama
-4. model คืน draft ของโพสต์
-5. frontend เติม title/content/category ให้ dialog
+ใช้รูปจากผู้ใช้ แล้วให้ AI ช่วยสร้าง:
 
-route ที่เกี่ยวข้อง:
-
-- `POST /api/ai/generate-post-from-image`
-- `POST /api/ai/generate-post-from-image/stream`
+- title
+- content
+- category
+- priority
+- target faculties / years
 
 ### Moderation
 
-ระบบ moderation มี 2 ชั้น:
+ตอนกดโพสต์ ระบบจะตรวจ 2 ชั้น:
 
-1. rule-based filter
-2. AI moderation
-
-ชั้นแรกจะเช็ก:
-
-- คำหยาบไทย
-- คำหยาบอังกฤษ
-- คำคุกคาม / hate / harassment
-- spam / scam terms
-
-ไฟล์ที่เกี่ยวข้อง:
-
-- [server/contentFilter.mjs](./server/contentFilter.mjs)
-
-ถ้าจะเพิ่มคำหยาบหรือ pattern ใหม่ ให้แก้ไฟล์นี้ก่อน
+1. rule-based filter จาก [server/contentFilter.mjs](./server/contentFilter.mjs)
+2. AI moderation จาก Ollama
 
 ### Translation
 
-route:
+ใช้ model เดียวกันแปลโพสต์ตามภาษาหลักของแอป
 
-- `POST /api/ai/translate-post`
-
-frontend จะใช้ภาษา default ของแอปเป็น target language
-
-## How To Continue Developing
+## Where To Continue Developing
 
 ถ้าจะพัฒนาต่อ แนะนำลำดับนี้:
 
-### 1. Login / Identity layer
+### 1. Authentication
 
-ตอนนี้ current user ยังเป็นลักษณะ development-friendly มากกว่า production auth
+ตอนนี้ยังไม่มี login จริง ควรเพิ่ม:
 
-สิ่งที่ควรทำต่อ:
-
-- local auth ชั่วคราว หรือ mock login selector
+- local auth ชั่วคราว
 - session handling
-- เตรียมเชื่อม university auth ภายหลัง
+- หรือเตรียมต่อ university login ภายหลัง
 
-### 2. Role permissions
+### 2. Role Permissions
 
-ตอนนี้หลาย action ยังอิงจาก current user ที่ frontend และ backend แบบพื้นฐาน
+ควรเพิ่ม permission checks ให้ละเอียดขึ้น เช่น:
 
-ควรเพิ่ม:
+- admin-only actions
+- club actions
+- ownership checks เพิ่มเติม
 
-- admin actions
-- club-specific actions
-- stricter authorization checks
+### 3. Resume Persistence
 
-### 3. Resume persistence
+หน้า resume ยังไม่เชื่อม database จริง
 
-ตอนนี้หน้า resume ยังไม่ต่อกับ database จริง
+### 4. Calendar Data Model
 
-### 4. Calendar improvements
+ตอนนี้ calendar อิงจากโพสต์หมวด event/exam เป็นหลัก  
+ถ้าจะพัฒนาต่อ ควรแยก field เช่น:
 
-ตอนนี้ calendar ใช้โพสต์หมวด `event` และ `exam` เป็นหลัก
+- eventDate
+- endDate
+- location
 
-ควรแยก field เช่น:
+### 5. Backend Refactor
 
-- `eventDate`
-- `endDate`
-- `location`
-
-### 5. Production cleanup
-
-ควรแยก backend เป็น:
+ตอนนี้ backend ยังรวมอยู่ในไฟล์เดียวเป็นหลัก  
+ถ้าจะเติบโตต่อ แนะนำแยกเป็น:
 
 - routes
 - services
-- db layer
 - validation
-
-และเพิ่ม:
-
-- logging
-- error middleware
-- request validation
-
-## Where To Edit What
-
-ถ้าจะเพิ่มฟีเจอร์ใหม่ ดูจากนี้ได้เลย:
-
-- เพิ่ม route backend:
-  - [server/index.mjs](./server/index.mjs)
-
-- เพิ่มฟังก์ชันเรียก API:
-  - [src/app/lib/bootstrap.ts](./src/app/lib/bootstrap.ts)
-
-- เพิ่ม state หรือ wiring ของแอป:
-  - [src/app/App.tsx](./src/app/App.tsx)
-
-- เพิ่ม UI:
-  - [src/app/components](./src/app/components)
-
-- เพิ่ม schema database:
-  - [prisma/schema.prisma](./prisma/schema.prisma)
-
-- เพิ่ม seed data:
-  - [prisma/seed.mjs](./prisma/seed.mjs)
+- db access layer
 
 ## Troubleshooting
 
@@ -353,9 +307,9 @@ frontend จะใช้ภาษา default ของแอปเป็น targ
 ให้:
 
 1. ติดตั้ง Ollama
-2. ปิด terminal / VS Code
+2. ปิด terminal
 3. เปิดใหม่
-4. ลองรัน:
+4. รัน
 
 ```powershell
 ollama --version
@@ -363,7 +317,7 @@ ollama --version
 
 ### `model 'qwen2.5vl:7b' not found`
 
-แปลว่ายังไม่ได้ pull model:
+ให้ pull model ก่อน:
 
 ```powershell
 ollama pull qwen2.5vl:7b
@@ -371,11 +325,11 @@ ollama pull qwen2.5vl:7b
 
 ### Prisma connection error
 
-ตรวจ:
+ให้เช็ก:
 
 - PostgreSQL เปิดอยู่ไหม
 - `DATABASE_URL` ถูกไหม
-- database มีอยู่จริงไหม
+- database ถูกสร้างแล้วหรือยัง
 
 จากนั้นลอง:
 
@@ -383,48 +337,30 @@ ollama pull qwen2.5vl:7b
 npm run db:push
 ```
 
-### หน้าเว็บเปิดได้แต่ข้อมูลไม่เปลี่ยน
+### หน้าเว็บขึ้น mock data
 
-ตรวจ:
+แปลว่า frontend เรียก backend หรือ database ไม่สำเร็จ  
+ให้ตรวจ:
 
-- backend รันอยู่ไหม
-- API ใช้พอร์ต `3001`
-- frontend ใช้พอร์ต `5173`
-
-ลองเปิด:
-
-```text
-http://127.0.0.1:3001/api/health
-```
-
-ถ้าปกติควรได้:
-
-```json
-{"ok":true}
-```
+- API รันอยู่ไหม
+- database connect ได้ไหม
+- `http://127.0.0.1:3001/api/health` ตอบ `{"ok":true}` หรือไม่
 
 ## Notes For Contributors
 
-- โปรเจคนี้เคยเริ่มจาก prototype ดังนั้นบางส่วนยังมี mock-era structure ปนอยู่
-- ตอนแก้โค้ด ควรระวังไม่ให้ frontend fallback logic พัง
-- AI moderation ยังไม่ควรถือเป็น production safety system
-- ถ้าจะ deploy จริง ควรเพิ่ม auth, validation, audit logging, และ permission checks ให้ครบ
+- โปรเจคนี้เริ่มจาก prototype จึงยังมีโครงสร้างบางส่วนที่เป็นลักษณะ frontend-first
+- ถ้าจะแก้ flow หลัก ควรดูทั้งฝั่ง `App.tsx`, `bootstrap.ts`, และ `server/index.mjs`
+- อย่า commit `.env` หรือ secret ใด ๆ
+- ถ้าจะเพิ่ม AI features ใหม่ ควรระวังเรื่อง latency และ resource ของเครื่องที่รัน Ollama
 
-## Suggested Next Steps
+## Recommended Next Tasks
 
-ถ้ารับงานนี้ไปพัฒนาต่อ แนะนำเริ่มจาก:
+งานที่เหมาะสำหรับพัฒนาต่อ:
 
 1. เพิ่ม auth จริง
-2. เพิ่ม current user switch สำหรับ dev/test
+2. เพิ่ม current user switch สำหรับ dev
 3. แยก backend structure
-4. ทำ resume ให้เก็บลง DB
-5. เพิ่ม event schema สำหรับ calendar
-6. ปรับ UX ฝั่ง mobile และ empty states
+4. ทำ resume ให้เขียนลง DB
+5. เพิ่ม event schema ให้ calendar
+6. เพิ่ม mobile UX และ state label ให้ชัดขึ้น
 
----
-
-ถ้าต้องการ ผมช่วยต่อให้ได้อีก:
-
-- เขียน `CONTRIBUTING.md`
-- เขียน `SETUP.md` แยกเฉพาะการติดตั้ง
-- เขียน README เวอร์ชันภาษาอังกฤษสำหรับใส่ GitHub
