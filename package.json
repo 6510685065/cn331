@@ -5,9 +5,17 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "concurrently \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node server/index.mjs",
+    "dev:web": "vite",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.mjs",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.6.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
@@ -42,8 +50,11 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
+    "cors": "^2.8.5",
     "date-fns": "3.6.0",
+    "dotenv": "^16.6.1",
     "embla-carousel-react": "8.6.0",
+    "express": "^5.1.0",
     "input-otp": "1.4.2",
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
@@ -65,8 +76,13 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "concurrently": "^9.2.1",
+    "prisma": "^6.6.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   },
   "peerDependencies": {
     "react": "18.3.1",

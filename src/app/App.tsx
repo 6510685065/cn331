@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { User, Post, PostCategory, Faculty, PostPriority } from './types';
 import { mockUsers, mockPosts, mockNotifications } from './data/mockData';
 import { Notification } from './components/NotificationPanel';
@@ -17,9 +17,29 @@ import { FilterPanel } from './components/FilterPanel';
 import { CreatePostDialog } from './components/CreatePostDialog';
 import { PostDetailModal } from './components/PostDetailModal';
 import { Button } from './components/ui/button';
+import {
+  ApiError,
+  createComment,
+  createPost,
+  deletePost,
+  fetchBootstrapData,
+  generatePostFromImage,
+  streamGeneratePostFromImage,
+  likeComment,
+  loadBootstrapData,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  moderatePostDraft,
+  reportPost,
+  translatePostContent,
+  togglePostLike,
+  togglePostSave,
+  updateUserProfile,
+} from './lib/bootstrap';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(mockUsers[2]); // Default: Engineering student
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [posts, setPosts] = useState<Post[]>(mockPosts);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,10 +47,61 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'relevance' | 'recent' | 'popular'>('relevance');
   const [showSaved, setShowSaved] = useState(false);
+  const [showMyPosts, setShowMyPosts] = useState(false);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [currentView, setCurrentView] = useState('posts');
   const [viewMode, setViewMode] = useState<'feed' | 'grid'>('feed');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [dataSource, setDataSource] = useState<'api' | 'mock'>('mock');
+  const [appLanguage, setAppLanguage] = useState<'th' | 'en'>(() => {
+    if (typeof window === 'undefined') {
+      return 'th';
+    }
+
+    return window.localStorage.getItem('app-language') === 'en' ? 'en' : 'th';
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem('app-language', appLanguage);
+  }, [appLanguage]);
+
+  const refreshFromApi = useCallback(async (preferredCurrentUserId?: string) => {
+    const freshData = await fetchBootstrapData(preferredCurrentUserId ?? currentUser.id);
+    setCurrentUser(freshData.currentUser);
+    setUsers(freshData.users);
+    setPosts(freshData.posts);
+    setNotifications(freshData.notifications);
+    setDataSource(freshData.source);
+
+    if (selectedPost) {
+      const updatedSelectedPost = freshData.posts.find((post) => post.id === selectedPost.id) ?? null;
+      setSelectedPost(updatedSelectedPost);
+    }
+  }, [currentUser.id, selectedPost]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadBootstrapData().then((data) => {
+      if (!isMounted) return;
+
+      setCurrentUser(data.currentUser);
+      setUsers(data.users);
+      setPosts(data.posts);
+      setNotifications(data.notifications);
+      setDataSource(data.source);
+
+      if (data.source === 'api') {
+        toast.success('โหลดข้อมูลจากฐานข้อมูลสำเร็จ');
+      } else {
+        toast.message('กำลังใช้ mock data ชั่วคราว');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Calculate relevance score for a post
   const calculateRelevanceScore = (post: Post): number => {
@@ -99,6 +170,11 @@ export default function App() {
       filtered = filtered.filter((post) => post.savedBy.includes(currentUser.id));
     }
 
+    // Filter by my posts
+    if (showMyPosts) {
+      filtered = filtered.filter((post) => post.author.id === currentUser.id);
+    }
+
     // Sort posts
     const sorted = [...filtered];
     if (sortBy === 'relevance') {
@@ -114,7 +190,7 @@ export default function App() {
     }
 
     return sorted;
-  }, [posts, debouncedSearchQuery, selectedCategory, sortBy, showSaved, currentUser]);
+  }, [posts, debouncedSearchQuery, selectedCategory, sortBy, showSaved, showMyPosts, currentUser]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -126,7 +202,18 @@ export default function App() {
   }, [posts, currentUser]);
 
   // Handlers
-  const handleLike = useCallback((postId: string) => {
+  const handleLike = useCallback(async (postId: string) => {
+    if (dataSource === 'api') {
+      try {
+        await togglePostLike(postId, currentUser.id);
+        await refreshFromApi(currentUser.id);
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถกดถูกใจโพสต์ได้');
+      }
+      return;
+    }
+
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -142,9 +229,21 @@ export default function App() {
         return post;
       })
     );
-  }, [currentUser.id]);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
-  const handleSave = useCallback((postId: string) => {
+  const handleSave = useCallback(async (postId: string) => {
+    if (dataSource === 'api') {
+      try {
+        await togglePostSave(postId, currentUser.id);
+        await refreshFromApi(currentUser.id);
+        toast.success('อัปเดตการบันทึกโพสต์แล้ว');
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถบันทึกโพสต์ได้');
+      }
+      return;
+    }
+
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -163,9 +262,21 @@ export default function App() {
         return post;
       })
     );
-  }, [currentUser.id]);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
-  const handleComment = useCallback((postId: string, content: string) => {
+  const handleComment = useCallback(async (postId: string, content: string) => {
+    if (dataSource === 'api') {
+      try {
+        await createComment(postId, currentUser.id, content);
+        await refreshFromApi(currentUser.id);
+        toast.success('แสดงความคิดเห็นแล้ว');
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถเพิ่มความคิดเห็นได้');
+      }
+      return;
+    }
+
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -187,9 +298,20 @@ export default function App() {
       })
     );
     toast.success('แสดงความคิดเห็นแล้ว');
-  }, [currentUser]);
+  }, [currentUser, dataSource, refreshFromApi]);
 
-  const handleLikeComment = useCallback((postId: string, commentId: string) => {
+  const handleLikeComment = useCallback(async (postId: string, commentId: string) => {
+    if (dataSource === 'api') {
+      try {
+        await likeComment(commentId);
+        await refreshFromApi(currentUser.id);
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถกดถูกใจความคิดเห็นได้');
+      }
+      return;
+    }
+
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -205,7 +327,7 @@ export default function App() {
         return post;
       })
     );
-  }, []);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
   const handleShare = useCallback((postId: string) => {
     // Copy link to clipboard
@@ -214,16 +336,51 @@ export default function App() {
     toast.success('คัดลอกลิงก์แล้ว');
   }, []);
 
-  const handleReport = useCallback((postId: string) => {
+  const handleReport = useCallback(async (postId: string) => {
+    if (dataSource === 'api') {
+      try {
+        await reportPost(postId);
+        await refreshFromApi(currentUser.id);
+        toast.success('รายงานโพสต์แล้ว ขอบคุณที่ช่วยรักษาคุณภาพของชุมชน');
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถรายงานโพสต์ได้');
+      }
+      return;
+    }
+
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId ? { ...post, reports: post.reports + 1 } : post
       )
     );
     toast.success('รายงานโพสต์แล้ว ขอบคุณที่ช่วยรักษาคุณภาพของชุมชน');
-  }, []);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
-  const handleCreatePost = useCallback((postData: {
+  const handleDeletePost = useCallback(async (postId: string) => {
+    if (dataSource === 'api') {
+      try {
+        await deletePost(postId, currentUser.id);
+        setSelectedPost(null);
+        await refreshFromApi(currentUser.id);
+        toast.success('ลบโพสต์แล้ว');
+      } catch (error) {
+        console.error(error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else {
+          toast.error('ไม่สามารถลบโพสต์ได้');
+        }
+      }
+      return;
+    }
+
+    setPosts((prev) => prev.filter((post) => post.id !== postId));
+    setSelectedPost(null);
+    toast.success('ลบโพสต์แล้ว');
+  }, [currentUser.id, dataSource, refreshFromApi]);
+
+  const handleCreatePost = useCallback(async (postData: {
     title: string;
     content: string;
     category: PostCategory;
@@ -232,6 +389,34 @@ export default function App() {
     targetYears: number[];
     image?: string;
   }) => {
+    if (dataSource === 'api') {
+      try {
+        const moderation = await moderatePostDraft(postData.title, postData.content);
+        if (!moderation.allowed) {
+          throw new Error(
+            moderation.suggestedRewrite
+            ? `${moderation.reason} ลองปรับเป็น: ${moderation.suggestedRewrite}`
+            : moderation.reason,
+          );
+        }
+
+        await createPost(currentUser.id, postData);
+        await refreshFromApi(currentUser.id);
+        toast.success('โพสต์สำเร็จ!');
+      } catch (error) {
+        console.error(error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else if (error instanceof Error && error.message) {
+          toast.error(error.message);
+        } else {
+          toast.error('ไม่สามารถสร้างโพสต์ได้');
+        }
+        throw error;
+      }
+      return;
+    }
+
     const newPost: Post = {
       id: `post-${Date.now()}`,
       author: currentUser,
@@ -247,22 +432,99 @@ export default function App() {
     };
     setPosts([newPost, ...posts]);
     toast.success('โพสต์สำเร็จ!');
-  }, [currentUser, posts]);
+  }, [currentUser, dataSource, posts, refreshFromApi]);
 
-  const handleSaveProfile = useCallback((updatedData: Partial<User>) => {
+  const handleGenerateFromImage = useCallback(async (
+    image: string,
+    onEvent?: Parameters<typeof streamGeneratePostFromImage>[1],
+  ) => {
+    try {
+      const draft = onEvent
+        ? await streamGeneratePostFromImage(image, onEvent)
+        : await generatePostFromImage(image);
+      toast.success('สร้างเนื้อหาจากภาพแล้ว');
+      return draft;
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error && error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('ไม่สามารถสร้างเนื้อหาจากภาพได้');
+      }
+      throw error;
+    }
+  }, []);
+
+  const handleTranslatePost = useCallback(async (post: Post, targetLanguage: 'th' | 'en') => {
+    try {
+      const translation = await translatePostContent(post.title, post.content, targetLanguage);
+      toast.success(`แปลโพสต์เป็น ${targetLanguage === 'en' ? 'English' : 'ไทย'} แล้ว`);
+      return translation;
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error && error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('ไม่สามารถแปลโพสต์ได้');
+      }
+      throw error;
+    }
+  }, []);
+
+  const handleSaveProfile = useCallback(async (updatedData: Partial<User>) => {
+    if (dataSource === 'api') {
+      try {
+        await updateUserProfile(currentUser.id, updatedData);
+        await refreshFromApi(currentUser.id);
+        toast.success('บันทึกโปรไฟล์แล้ว');
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถบันทึกโปรไฟล์ได้');
+      }
+      return;
+    }
+
     setCurrentUser({ ...currentUser, ...updatedData });
     toast.success('บันทึกโปรไฟล์แล้ว');
-  }, [currentUser]);
+  }, [currentUser, dataSource, refreshFromApi]);
 
   const handleViewChange = useCallback((view: string) => {
     setCurrentView(view);
     // Reset filters when changing views
     if (view === 'saved') {
       setShowSaved(true);
+      setShowMyPosts(false);
+      setCurrentView('posts');
+    } else if (view === 'my-posts') {
+      setShowMyPosts(true);
+      setShowSaved(false);
       setCurrentView('posts');
     } else {
       setShowSaved(false);
+      setShowMyPosts(false);
     }
+  }, []);
+
+  const handleToggleSavedPosts = useCallback(() => {
+    setCurrentView('posts');
+    setShowSaved((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowMyPosts(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleMyPosts = useCallback(() => {
+    setCurrentView('posts');
+    setShowMyPosts((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowSaved(false);
+      }
+      return next;
+    });
   }, []);
 
   const handleNotificationClick = useCallback((notification: Notification) => {
@@ -278,17 +540,39 @@ export default function App() {
     }
   }, [posts, currentView]);
 
-  const handleMarkNotificationAsRead = useCallback((id: string) => {
+  const handleMarkNotificationAsRead = useCallback(async (id: string) => {
+    if (dataSource === 'api') {
+      try {
+        await markNotificationAsRead(id);
+        await refreshFromApi(currentUser.id);
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถอัปเดตสถานะการแจ้งเตือนได้');
+      }
+      return;
+    }
+
     setNotifications(prev =>
       prev.map(n => n.id === id ? { ...n, isRead: true } : n)
     );
-  }, []);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
-  const handleMarkAllNotificationsAsRead = useCallback(() => {
+  const handleMarkAllNotificationsAsRead = useCallback(async () => {
+    if (dataSource === 'api') {
+      try {
+        await markAllNotificationsAsRead(currentUser.id);
+        await refreshFromApi(currentUser.id);
+      } catch (error) {
+        console.error(error);
+        toast.error('ไม่สามารถอัปเดตการแจ้งเตือนได้');
+      }
+      return;
+    }
+
     setNotifications(prev =>
       prev.map(n => ({ ...n, isRead: true }))
     );
-  }, []);
+  }, [currentUser.id, dataSource, refreshFromApi]);
 
   // Render main content based on current view
   const renderMainContent = () => {
@@ -343,10 +627,17 @@ export default function App() {
         );
 
       case 'teams':
-        return <TeamsView currentUser={currentUser} allUsers={mockUsers} />;
+        return <TeamsView currentUser={currentUser} allUsers={users} />;
 
       case 'settings':
-        return <SettingsView user={currentUser} onSave={handleSaveProfile} />;
+        return (
+          <SettingsView
+            user={currentUser}
+            onSave={handleSaveProfile}
+            appLanguage={appLanguage}
+            onAppLanguageChange={setAppLanguage}
+          />
+        );
 
       case 'resume':
         return <ResumeView currentUser={currentUser} />;
@@ -377,6 +668,9 @@ export default function App() {
           onLikeComment={handleLikeComment}
           onShare={handleShare}
           onReport={handleReport}
+          onDelete={handleDeletePost}
+          onTranslate={handleTranslatePost}
+          appLanguage={appLanguage}
         />
       )}
 
@@ -387,6 +681,10 @@ export default function App() {
             user={currentUser}
             currentView={currentView}
             onViewChange={handleViewChange}
+            showSaved={showSaved}
+            showMyPosts={showMyPosts}
+            onToggleSavedPosts={handleToggleSavedPosts}
+            onToggleMyPosts={handleToggleMyPosts}
             stats={stats}
           />
         </div>
@@ -410,6 +708,11 @@ export default function App() {
 
           <main className="flex-1 p-6">
             <div className="max-w-7xl mx-auto">
+              {dataSource === 'mock' && (
+                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  API ยังไม่พร้อมใช้งาน ตอนนี้หน้าเว็บกำลังแสดงผลจาก mock data
+                </div>
+              )}
               {/* Mobile Filter Pills */}
               {currentView === 'posts' && (
                 <div className="xl:hidden mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -505,6 +808,7 @@ export default function App() {
           onOpenChange={setIsCreatePostOpen}
           currentUser={currentUser}
           onCreatePost={handleCreatePost}
+          onGenerateFromImage={handleGenerateFromImage}
         />
       </>
     </div>
