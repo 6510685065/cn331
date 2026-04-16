@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { User, Faculty, PostCategory, PostPriority } from '../types';
+import type { GenerationStreamEvent } from '../lib/bootstrap';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,9 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
 import { categories, faculties } from '../data/mockData';
-import { Upload, X } from 'lucide-react';
+import { Loader2, Sparkles, Upload, X } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Progress } from './ui/progress';
 
 interface CreatePostDialogProps {
   open: boolean;
@@ -29,14 +32,26 @@ interface CreatePostDialogProps {
     targetFaculties: Faculty[];
     targetYears: number[];
     image?: string;
-  }) => void;
+  }) => Promise<void> | void;
+  onGenerateFromImage: (
+    image: string,
+    onEvent?: (event: GenerationStreamEvent) => void,
+  ) => Promise<{
+    title: string;
+    content: string;
+    category: PostCategory;
+    priority: PostPriority;
+    targetFaculties: Faculty[];
+    targetYears: number[];
+  }>;
 }
 
 export function CreatePostDialog({
   open,
   onOpenChange,
   currentUser,
-  onCreatePost
+  onCreatePost,
+  onGenerateFromImage
 }: CreatePostDialogProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -47,21 +62,14 @@ export function CreatePostDialog({
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiStatus, setAiStatus] = useState('');
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiLiveText, setAiLiveText] = useState('');
+  const [aiError, setAiError] = useState('');
 
-  const handleSubmit = () => {
-    if (!title.trim() || !content.trim()) return;
-
-    onCreatePost({
-      title,
-      content,
-      category,
-      priority,
-      targetFaculties,
-      targetYears,
-      image: imageUrl || undefined
-    });
-
-    // Reset form
+  const resetForm = () => {
     setTitle('');
     setContent('');
     setCategory('general');
@@ -70,7 +78,40 @@ export function CreatePostDialog({
     setTargetYears([]);
     setImageUrl('');
     setImagePreview('');
-    onOpenChange(false);
+    setIsSubmitting(false);
+    setIsGenerating(false);
+    setAiStatus('');
+    setAiProgress(0);
+    setAiLiveText('');
+    setAiError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !content.trim()) return;
+
+    setIsSubmitting(true);
+    setAiError('');
+    setAiStatus('กำลังตรวจสอบเนื้อหาโพสต์ก่อนเผยแพร่');
+    setAiProgress(20);
+
+    try {
+      await onCreatePost({
+        title,
+        content,
+        category,
+        priority,
+        targetFaculties,
+        targetYears,
+        image: imageUrl || undefined
+      });
+
+      resetForm();
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
+      setAiStatus('');
+      setAiProgress(0);
+    }
   };
 
   const toggleFaculty = (faculty: Faculty) => {
@@ -143,6 +184,50 @@ export function CreatePostDialog({
   const removeImage = () => {
     setImagePreview('');
     setImageUrl('');
+  };
+
+  const handleGenerateFromImage = async () => {
+    if (!imageUrl) return;
+
+    setIsGenerating(true);
+    setAiError('');
+    setAiStatus('กำลังเตรียมรูปภาพ');
+    setAiProgress(5);
+    setAiLiveText('');
+
+    try {
+      const draft = await onGenerateFromImage(imageUrl, (event) => {
+        if (event.type === 'status') {
+          setAiStatus(event.message ?? '');
+          setAiProgress(event.progress ?? 0);
+        }
+
+        if (event.type === 'token' && event.token) {
+          setAiLiveText((prev) => {
+            if (prev.includes('\n{')) {
+              return prev;
+            }
+
+            const next = `${prev}${event.token}`.trimStart();
+            const jsonStart = next.indexOf('\n{');
+            return jsonStart >= 0 ? next.slice(0, jsonStart).trimEnd() : next;
+          });
+        }
+      });
+      setTitle(draft.title);
+      setContent(draft.content);
+      setCategory(draft.category);
+      setPriority(draft.priority);
+      setTargetFaculties(draft.targetFaculties);
+      setTargetYears(draft.targetYears);
+      setAiStatus('สร้างร่างโพสต์เสร็จแล้ว');
+      setAiProgress(100);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'ไม่สามารถสร้างเนื้อหาจากภาพได้');
+      setAiProgress(0);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -326,16 +411,53 @@ export function CreatePostDialog({
                 </Button>
               </div>
             )}
+            {(isGenerating || isSubmitting || aiStatus || aiLiveText || aiError) && (
+              <div className="mt-4 space-y-3">
+                <Alert className={aiError ? 'border-red-300 bg-red-50' : 'border-amber-200 bg-amber-50'}>
+                  <Sparkles className="h-4 w-4" />
+                  <AlertTitle>{aiError ? 'AI ทำงานไม่สำเร็จ' : 'สถานะ AI'}</AlertTitle>
+                  <AlertDescription>
+                    <p>{aiError || aiStatus || 'กำลังประมวลผล'}</p>
+                  </AlertDescription>
+                </Alert>
+                {!aiError && (isGenerating || isSubmitting || aiProgress > 0) && (
+                  <Progress value={aiProgress} className="h-2" />
+                )}
+                {aiLiveText && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                    <p className="mb-1 font-medium text-slate-900">ข้อความสดจากโมเดล</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">{aiLiveText}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <DialogFooter className="pt-6 gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-11 px-6 text-base border-gray-300 text-gray-700 hover:bg-gray-50">
+        <DialogFooter className="pt-6 gap-3 sm:justify-between">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleGenerateFromImage}
+            disabled={!imageUrl || isGenerating || isSubmitting}
+            className="h-11 px-6 text-base bg-amber-100 text-amber-900 hover:bg-amber-200"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
+            สร้างเนื้อหาจากภาพ
+          </Button>
+          <div className="flex gap-3">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-11 px-6 text-base border-gray-300 text-gray-700 hover:bg-gray-50" disabled={isSubmitting || isGenerating}>
             ยกเลิก
           </Button>
-          <Button onClick={handleSubmit} disabled={!title.trim() || !content.trim()} className="h-11 px-6 text-base bg-red-500 hover:bg-red-600 text-white">
+          <Button onClick={handleSubmit} disabled={!title.trim() || !content.trim() || isSubmitting || isGenerating} className="h-11 px-6 text-base bg-red-500 hover:bg-red-600 text-white">
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             โพสต์
           </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -16,7 +16,9 @@ import {
   Send,
   MoreVertical,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Languages,
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -40,6 +42,13 @@ interface PostDetailModalProps {
   onLikeComment: (postId: string, commentId: string) => void;
   onShare: (postId: string) => void;
   onReport: (postId: string) => void;
+  onDelete: (postId: string) => void;
+  onTranslate: (post: Post, targetLanguage: 'th' | 'en') => Promise<{
+    title: string;
+    content: string;
+    language: 'th' | 'en';
+  }>;
+  appLanguage: 'th' | 'en';
 }
 
 export function PostDetailModal({
@@ -53,13 +62,23 @@ export function PostDetailModal({
   onComment,
   onLikeComment,
   onShare,
-  onReport
+  onReport,
+  onDelete,
+  onTranslate,
+  appLanguage
 }: PostDetailModalProps) {
   const [commentText, setCommentText] = useState('');
   const [direction, setDirection] = useState(0);
+  const [translatedContent, setTranslatedContent] = useState<{
+    title: string;
+    content: string;
+    language: 'th' | 'en';
+  } | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const isLiked = post.likedBy.includes(currentUser.id);
   const isSaved = post.savedBy.includes(currentUser.id);
+  const isOwnPost = post.author.id === currentUser.id;
 
   // Find current post index
   const currentIndex = allPosts.findIndex((p) => p.id === post.id);
@@ -121,6 +140,11 @@ export function PostDetailModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, allPosts]);
 
+  useEffect(() => {
+    setTranslatedContent(null);
+    setIsTranslating(false);
+  }, [post.id]);
+
   const variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 300 : -300,
@@ -134,6 +158,22 @@ export function PostDetailModal({
       x: direction < 0 ? 300 : -300,
       opacity: 0
     })
+  };
+
+  const handleTranslate = async () => {
+    if (translatedContent?.language === appLanguage) {
+      setTranslatedContent(null);
+      return;
+    }
+
+    setIsTranslating(true);
+
+    try {
+      const result = await onTranslate(post, appLanguage);
+      setTranslatedContent(result);
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
   return (
@@ -235,18 +275,42 @@ export function PostDetailModal({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => onShare(post.id)}>แชร์โพสต์</DropdownMenuItem>
                     <DropdownMenuItem>คัดลอกลิงก์</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onReport(post.id)} className="text-red-500">
-                      รายงานโพสต์
-                    </DropdownMenuItem>
+                    {isOwnPost ? (
+                      <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-red-500">
+                        ลบโพสต์
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => onReport(post.id)} className="text-red-500">
+                        รายงานโพสต์
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
 
               {/* Post Content */}
               <div className="space-y-4">
-                <h1 className="text-2xl font-bold">{post.title}</h1>
+                <div className="flex items-center justify-between gap-3">
+                  <h1 className="text-2xl font-bold">{translatedContent?.title ?? post.title}</h1>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTranslate}
+                    disabled={isTranslating}
+                    className="shrink-0"
+                  >
+                    {isTranslating ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Languages className="w-4 h-4 mr-2" />
+                    )}
+                    {translatedContent?.language === appLanguage
+                      ? 'แสดงต้นฉบับ'
+                      : `แปลเป็น ${appLanguage === 'en' ? 'English' : 'ไทย'}`}
+                  </Button>
+                </div>
                 <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                  {post.content}
+                  {translatedContent?.content ?? post.content}
                 </p>
 
                 {post.image && (

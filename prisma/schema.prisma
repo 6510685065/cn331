@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  CLUB
+  ADMIN
+}
+
+enum Faculty {
+  ENGINEERING
+  SCIENCE
+  ARTS
+  BUSINESS
+  MEDICINE
+  LAW
+}
+
+enum PostPriority {
+  NORMAL
+  HIGH
+  EMERGENCY
+}
+
+enum PostCategory {
+  EXAM
+  EVENT
+  INTERNSHIP
+  ANNOUNCEMENT
+  CLUB
+  GENERAL
+}
+
+enum NotificationType {
+  COMMENT
+  LIKE
+  ANNOUNCEMENT
+  EVENT
+  EXAM
+  SYSTEM
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String
+  role           UserRole
+  faculty        Faculty?
+  year           Int?
+  interests      String[]
+  avatarUrl      String?
+  authProvider   String         @default("local")
+  externalAuthId String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  posts          Post[]
+  comments       Comment[]
+  postLikes      PostLike[]
+  postSaves      PostSave[]
+  notifications  Notification[] @relation("NotificationRecipient")
+  actorEvents    Notification[] @relation("NotificationActor")
+
+  @@index([role])
+  @@index([faculty])
+  @@index([externalAuthId])
+}
+
+model Post {
+  id               String         @id @default(cuid())
+  authorId         String
+  title            String
+  content          String
+  category         PostCategory
+  priority         PostPriority   @default(NORMAL)
+  targetFaculties  Faculty[]
+  targetYears      Int[]
+  imageUrl         String?
+  isPinned         Boolean        @default(false)
+  likesCount       Int            @default(0)
+  commentsCount    Int            @default(0)
+  savesCount       Int            @default(0)
+  reportsCount     Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  author           User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments         Comment[]
+  likes            PostLike[]
+  saves            PostSave[]
+  notifications    Notification[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([category, createdAt(sort: Desc)])
+  @@index([priority, createdAt(sort: Desc)])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  postId     String
+  authorId   String
+  content    String
+  likesCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([authorId])
+}
+
+model PostLike {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model PostSave {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  actorId     String?
+  postId      String?
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead, createdAt(sort: Desc)])
+  @@index([postId])
+}
