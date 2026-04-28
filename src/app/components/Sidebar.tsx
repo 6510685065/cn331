@@ -19,6 +19,10 @@ interface SidebarProps {
   user: User;
   currentView: string;
   onViewChange: (view: string) => void;
+  showSaved: boolean;
+  showMyPosts: boolean;
+  onToggleSavedPosts: () => void;
+  onToggleMyPosts: () => void;
   stats: {
     totalPosts: number;
     savedPosts: number;
@@ -26,7 +30,16 @@ interface SidebarProps {
   };
 }
 
-export function Sidebar({ user, currentView, onViewChange, stats }: SidebarProps) {
+export function Sidebar({
+  user,
+  currentView,
+  onViewChange,
+  showSaved,
+  showMyPosts,
+  onToggleSavedPosts,
+  onToggleMyPosts,
+  stats,
+}: SidebarProps) {
   const menuItems = [
     { id: 'posts', label: 'Posts', icon: LayoutGrid, badge: stats.totalPosts },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -60,6 +73,17 @@ export function Sidebar({ user, currentView, onViewChange, stats }: SidebarProps
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate text-red-900">{user.name}</p>
             <p className="text-xs text-red-700/70 truncate">{user.faculty}</p>
+            <span className={`inline-block mt-0.5 px-1.5 py-0 text-[10px] font-medium rounded-full border ${
+              user.role === 'professor'
+                ? 'bg-purple-100 text-purple-700 border-purple-200'
+                : user.role === 'admin'
+                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                : user.role === 'club'
+                ? 'bg-green-100 text-green-700 border-green-200'
+                : 'bg-blue-100 text-blue-700 border-blue-200'
+            }`}>
+              {user.role === 'professor' ? 'อาจารย์' : user.role === 'admin' ? 'แอดมิน' : user.role === 'club' ? 'ชมรม' : 'นักศึกษา'}
+            </span>
           </div>
         </div>
       </div>
@@ -97,14 +121,30 @@ export function Sidebar({ user, currentView, onViewChange, stats }: SidebarProps
 
       {/* Stats */}
       <div className="px-3 py-3 space-y-2 bg-red-50/50">
-        <div className="flex items-center justify-between text-sm">
+        <button
+          type="button"
+          onClick={onToggleSavedPosts}
+          className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+            showSaved
+              ? 'bg-red-100 text-red-900'
+              : 'text-red-700/70 hover:bg-red-100/70 hover:text-red-900'
+          }`}
+        >
           <span className="text-red-700/70">Saved</span>
           <span className="font-semibold text-red-900">{stats.savedPosts}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
+        </button>
+        <button
+          type="button"
+          onClick={onToggleMyPosts}
+          className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+            showMyPosts
+              ? 'bg-red-100 text-red-900'
+              : 'text-red-700/70 hover:bg-red-100/70 hover:text-red-900'
+          }`}
+        >
           <span className="text-red-700/70">My Posts</span>
           <span className="font-semibold text-red-900">{stats.myPosts}</span>
-        </div>
+        </button>
       </div>
     </aside>
   );

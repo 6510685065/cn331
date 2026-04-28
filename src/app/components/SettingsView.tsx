@@ -7,19 +7,28 @@ import { Badge } from './ui/badge';
 import { X, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { faculties } from '../data/mockData';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SettingsViewProps {
   user: User;
   onSave: (updatedUser: Partial<User>) => void;
+  appLanguage: 'th' | 'en';
+  onAppLanguageChange: (language: 'th' | 'en') => void;
 }
 
-export function SettingsView({ user, onSave }: SettingsViewProps) {
+export function SettingsView({ user, onSave, appLanguage, onAppLanguageChange }: SettingsViewProps) {
   const [name, setName] = useState(user.name);
   const [faculty, setFaculty] = useState(user.faculty);
   const [year, setYear] = useState(user.year);
   const [interests, setInterests] = useState<string[]>(user.interests);
   const [newInterest, setNewInterest] = useState('');
+
+  useEffect(() => {
+    setName(user.name);
+    setFaculty(user.faculty);
+    setYear(user.year);
+    setInterests(user.interests);
+  }, [user]);
 
   const handleAddInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
@@ -64,7 +73,7 @@ export function SettingsView({ user, onSave }: SettingsViewProps) {
             />
           </div>
 
-          {user.role === 'student' && (
+          {(user.role === 'student' || user.role === 'professor') && (
             <>
               <div>
                 <Label htmlFor="faculty" className="text-sm md:text-base">คณะ</Label>
@@ -161,6 +170,32 @@ export function SettingsView({ user, onSave }: SettingsViewProps) {
             </div>
             <Button variant="outline" size="sm" className="text-xs md:text-sm h-8 md:h-9">เปิด</Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="text-base md:text-lg">ภาษาแอป</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 p-4 md:p-6 pt-0">
+          <div>
+            <Label htmlFor="app-language" className="text-sm md:text-base">ภาษาเริ่มต้นสำหรับการแปลโพสต์</Label>
+            <Select
+              value={appLanguage}
+              onValueChange={(value: 'th' | 'en') => onAppLanguageChange(value)}
+            >
+              <SelectTrigger id="app-language" className="h-10 md:h-11 text-sm md:text-base mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="th" className="text-sm md:text-base">ไทย</SelectItem>
+                <SelectItem value="en" className="text-sm md:text-base">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            ปุ่มแปลภาษาจะใช้ภาษานี้เป็นค่าหลักของแอป
+          </p>
         </CardContent>
       </Card>
 
