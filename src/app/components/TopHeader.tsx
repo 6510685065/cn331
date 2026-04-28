@@ -38,6 +38,7 @@ interface TopHeaderProps {
   onNotificationClick: (notification: Notification) => void;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onLogout?: () => void;
 }
 
 export function TopHeader({
@@ -52,9 +53,17 @@ export function TopHeader({
   notifications,
   onNotificationClick,
   onMarkAsRead,
-  onMarkAllAsRead
+  onMarkAllAsRead,
+  onLogout
 }: TopHeaderProps) {
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const roleLabels: Record<string, { label: string; color: string }> = {
+    student: { label: 'นักศึกษา', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    professor: { label: 'อาจารย์', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    admin: { label: 'แอดมิน', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    club: { label: 'ชมรม', color: 'bg-green-100 text-green-700 border-green-200' },
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-red-200 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -140,6 +149,11 @@ export function TopHeader({
               <div className="px-2 py-3">
                 <div className="font-semibold text-base">{currentUser.name}</div>
                 <div className="text-sm text-muted-foreground">{currentUser.email}</div>
+                {roleLabels[currentUser.role] && (
+                  <span className={`inline-block mt-1.5 px-2 py-0.5 text-xs font-medium rounded-full border ${roleLabels[currentUser.role].color}`}>
+                    {roleLabels[currentUser.role].label}
+                  </span>
+                )}
               </div>
               <DropdownMenuSeparator />
               
@@ -156,7 +170,7 @@ export function TopHeader({
                 ช่วยเหลือ
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem className="text-red-600" onClick={onLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 ออกจากระบบ
               </DropdownMenuItem>

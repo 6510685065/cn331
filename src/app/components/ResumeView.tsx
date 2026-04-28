@@ -31,15 +31,19 @@ export function ResumeView({ currentUser }: ResumeViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>('display');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Mock resume data
+  // Mock resume data populated with currentUser where available
   const [resumeData] = useState({
-    name: 'สมชาย ใจดี',
-    title: 'นักศึกษาวิทยาศาสตร์คอมพิวเตอร์',
-    email: 'somchai.j@university.ac.th',
+    name: currentUser.name || 'ไม่ระบุชื่อ',
+    title: currentUser.role === 'STUDENT' 
+      ? `นักศึกษา${currentUser.faculty ? `คณะ${currentUser.faculty}` : ''}`
+      : currentUser.role === 'PROFESSOR' ? 'อาจารย์' : 'บุคลากร',
+    email: currentUser.email,
     phone: '089-xxx-xxxx',
     location: 'กรุงเทพมหานคร ประเทศไทย',
-    website: 'somchai-portfolio.com',
-    bio: 'นักศึกษาชั้นปีที่ 3 สาขาวิทยาศาสตร์คอมพิวเตอร์ มีความสนใจในการพัฒนาเว็บไซต์และแอปพลิเคชัน รวมถึงแอปพลิเคชันมือถือ มีประสบการณ์ในการทำงานโครงการและเข้าร่วมกิจกรรมต่าง ๆ ของมหาวิทยาลัย มีทักษะในการทำงานเป็นทีมและการแก้ไขปัญหา พร้อมที่จะเรียนรู้สิ่งใหม่ ๆ อยู่เสมอ',
+    website: 'your-portfolio.com',
+    bio: currentUser.role === 'STUDENT' 
+      ? 'นักศึกษามหาวิทยาลัยธรรมศาสตร์ มีความสนใจในการเรียนรู้และพัฒนาตนเอง พร้อมที่จะเผชิญกับความท้าทายใหม่ ๆ'
+      : 'บุคลากรมหาวิทยาลัยธรรมศาสตร์',
     education: [
       {
         id: '1',

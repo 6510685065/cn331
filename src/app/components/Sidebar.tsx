@@ -73,6 +73,17 @@ export function Sidebar({
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate text-red-900">{user.name}</p>
             <p className="text-xs text-red-700/70 truncate">{user.faculty}</p>
+            <span className={`inline-block mt-0.5 px-1.5 py-0 text-[10px] font-medium rounded-full border ${
+              user.role === 'professor'
+                ? 'bg-purple-100 text-purple-700 border-purple-200'
+                : user.role === 'admin'
+                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                : user.role === 'club'
+                ? 'bg-green-100 text-green-700 border-green-200'
+                : 'bg-blue-100 text-blue-700 border-blue-200'
+            }`}>
+              {user.role === 'professor' ? 'อาจารย์' : user.role === 'admin' ? 'แอดมิน' : user.role === 'club' ? 'ชมรม' : 'นักศึกษา'}
+            </span>
           </div>
         </div>
       </div>

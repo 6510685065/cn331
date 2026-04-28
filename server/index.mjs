@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { checkBlockedTerms } from "./contentFilter.mjs";
+import { mountAuthRoutes, authMiddleware } from "./auth.mjs";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -12,10 +13,15 @@ const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5vl:7b";
 
 app.use(cors());
 app.use(express.json({ limit: "15mb" }));
+app.use(authMiddleware);
+
+// Mount TU API authentication routes
+mountAuthRoutes(app, prisma);
 
 const roleMap = {
   STUDENT: "student",
   CLUB: "club",
+  PROFESSOR: "professor",
   ADMIN: "admin",
 };
 
@@ -461,7 +467,7 @@ app.get("/api/bootstrap", async (req, res) => {
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     });
 
-    const requestedCurrentUserId = typeof req.query.currentUserId === "string" ? req.query.currentUserId : null;
+    const requestedCurrentUserId = req.userId || (typeof req.query.currentUserId === "string" ? req.query.currentUserId : null);
     const currentUserRecord =
       users.find((user) => user.id === requestedCurrentUserId) ??
       users.find((user) => user.email === "somchai.j@university.ac.th") ??

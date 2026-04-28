@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   STUDENT
   CLUB
+  PROFESSOR
   ADMIN
 }
 
@@ -57,6 +58,7 @@ model User {
   avatarUrl      String?
   authProvider   String         @default("local")
   externalAuthId String?
+  tuType         String?
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

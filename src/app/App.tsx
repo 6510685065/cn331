@@ -16,6 +16,7 @@ import { ResumeView } from './components/ResumeView';
 import { FilterPanel } from './components/FilterPanel';
 import { CreatePostDialog } from './components/CreatePostDialog';
 import { PostDetailModal } from './components/PostDetailModal';
+import { LoginPage } from './components/LoginPage';
 import { Button } from './components/ui/button';
 import {
   ApiError,
@@ -36,8 +37,18 @@ import {
   togglePostSave,
   updateUserProfile,
 } from './lib/bootstrap';
+import {
+  login as authLogin,
+  logout as authLogout,
+  getSession,
+  isAuthenticated as checkIsAuthenticated,
+} from './lib/auth';
 
 export default function App() {
+  // ── Authentication state ──
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [currentUser, setCurrentUser] = useState<User>(mockUsers[2]); // Default: Engineering student
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [posts, setPosts] = useState<Post[]>(mockPosts);
@@ -65,6 +76,57 @@ export default function App() {
     window.localStorage.setItem('app-language', appLanguage);
   }, [appLanguage]);
 
+  // ── Check existing session on mount ──
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      if (!checkIsAuthenticated()) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const sessionUser = await getSession();
+        if (!isMounted) return;
+
+        if (sessionUser) {
+          setCurrentUser(sessionUser);
+          setIsAuthenticated(true);
+        }
+      } catch {
+        // Session invalid — stay on login page.
+      } finally {
+        if (isMounted) setAuthLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // ── Login handler ──
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    const result = await authLogin(username, password);
+    setCurrentUser(result.user);
+    setIsAuthenticated(true);
+    toast.success(`ยินดีต้อนรับ ${result.user.name}`);
+  }, []);
+
+  // ── Logout handler ──
+  const handleLogout = useCallback(async () => {
+    await authLogout();
+    setIsAuthenticated(false);
+    setCurrentUser(mockUsers[2]);
+    setUsers(mockUsers);
+    setPosts(mockPosts);
+    setNotifications(mockNotifications);
+    setDataSource('mock');
+    setCurrentView('posts');
+    toast.success('ออกจากระบบแล้ว');
+  }, []);
+
   const refreshFromApi = useCallback(async (preferredCurrentUserId?: string) => {
     const freshData = await fetchBootstrapData(preferredCurrentUserId ?? currentUser.id);
     setCurrentUser(freshData.currentUser);
@@ -79,7 +141,10 @@ export default function App() {
     }
   }, [currentUser.id, selectedPost]);
 
+  // ── Load bootstrap data when authenticated ──
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     let isMounted = true;
 
     loadBootstrapData().then((data) => {
@@ -101,7 +166,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Calculate relevance score for a post
   const calculateRelevanceScore = (post: Post): number => {
@@ -647,6 +712,29 @@ export default function App() {
     }
   };
 
+  // ── Auth loading spinner ──
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-900 via-red-800 to-amber-900">
+        <Toaster />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-white/60 text-sm">กำลังตรวจสอบสิทธิ์...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Login page ──
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Toaster />
+        <LoginPage onLogin={handleLogin} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex">
       <Toaster />
@@ -704,6 +792,7 @@ export default function App() {
             onNotificationClick={handleNotificationClick}
             onMarkAsRead={handleMarkNotificationAsRead}
             onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+            onLogout={handleLogout}
           />
 
           <main className="flex-1 p-6">
@@ -814,3 +903,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -73,7 +73,7 @@ export function SettingsView({ user, onSave, appLanguage, onAppLanguageChange }:
             />
           </div>
 
-          {user.role === 'student' && (
+          {(user.role === 'student' || user.role === 'professor') && (
             <>
               <div>
                 <Label htmlFor="faculty" className="text-sm md:text-base">คณะ</Label>

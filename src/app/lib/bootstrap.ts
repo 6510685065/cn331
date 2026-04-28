@@ -1,6 +1,7 @@
 import { mockNotifications, mockPosts, mockUsers } from "../data/mockData";
 import type { Notification } from "../components/NotificationPanel";
 import type { Post, User } from "../types";
+import { getAuthHeader } from "./auth";
 
 interface BootstrapPayload {
   currentUser: User | null;
@@ -98,7 +99,11 @@ function reviveNotification(notification: BootstrapPayload["notifications"][numb
 
 export async function loadBootstrapData(): Promise<BootstrapData> {
   try {
-    const response = await fetch("/api/bootstrap");
+    const response = await fetch("/api/bootstrap", {
+      headers: {
+        ...getAuthHeader(),
+      },
+    });
     if (!response.ok) {
       throw new Error(`Bootstrap request failed with status ${response.status}`);
     }
@@ -129,7 +134,11 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
 
 export async function fetchBootstrapData(currentUserId?: string): Promise<BootstrapData> {
   const query = currentUserId ? `?currentUserId=${encodeURIComponent(currentUserId)}` : "";
-  const response = await fetch(`/api/bootstrap${query}`);
+  const response = await fetch(`/api/bootstrap${query}`, {
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
   if (!response.ok) {
     throw new Error(`Bootstrap request failed with status ${response.status}`);
   }
@@ -153,6 +162,7 @@ async function postJson(url: string, body?: unknown, method = "POST") {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeader(),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -231,6 +241,7 @@ export async function streamGeneratePostFromImage(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeader(),
     },
     body: JSON.stringify({ image }),
   });
